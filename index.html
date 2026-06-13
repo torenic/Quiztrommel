@@ -3,26 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spørsmålstrommelen</title>
+<title>Quiztrommel</title>
 
 <style>
+:root{
+  --blue:#00509e;
+  --dark:#002d62;
+  --light:#d9ecff;
+  --green:#dff3df;
+  --yellow:#fff3c4;
+  --red:#c00000;
+  --grey:#f2f5f8;
+}
+
+*{box-sizing:border-box}
+
 body{
   margin:0;
   font-family:Arial, sans-serif;
-  background:#f2f5f8;
+  background:var(--grey);
   color:#111;
 }
 
 header{
-  background:linear-gradient(135deg,#00509e,#002d62);
+  background:linear-gradient(135deg,var(--blue),var(--dark));
   color:white;
   text-align:center;
-  padding:18px 12px;
+  padding:20px 12px;
 }
 
 header h1{
   margin:0;
-  font-size:30px;
+  font-size:34px;
+}
+
+header p{
+  margin:8px 0 0;
+  font-size:18px;
 }
 
 main{
@@ -33,39 +50,60 @@ main{
 
 .panel{
   background:white;
-  border-radius:14px;
-  padding:14px;
+  border-radius:18px;
+  padding:16px;
   margin-bottom:14px;
-  box-shadow:0 2px 8px #0002;
+  box-shadow:0 2px 10px #0002;
 }
 
-textarea{
-  width:100%;
-  min-height:120px;
-  font-size:15px;
-  padding:10px;
+.toprow{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
 }
 
 button{
   border:0;
-  border-radius:10px;
-  padding:14px 18px;
-  font-size:18px;
-  background:#00509e;
+  border-radius:14px;
+  padding:15px 18px;
+  font-size:19px;
+  background:var(--blue);
   color:white;
   cursor:pointer;
-  margin:5px;
+  margin:4px 0;
+  width:100%;
 }
 
 button.secondary{
   background:#555;
 }
 
+button.small{
+  width:auto;
+  font-size:15px;
+  padding:9px 12px;
+}
+
+.status{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  text-align:center;
+  font-size:15px;
+}
+
+.status div{
+  background:#eef4fa;
+  padding:9px;
+  border-radius:10px;
+}
+
 .trommel{
-  height:120px;
+  min-height:135px;
   overflow:hidden;
-  border:5px solid #00509e;
-  border-radius:20px;
+  border:5px solid var(--blue);
+  border-radius:22px;
   background:linear-gradient(#eaf4ff,#ffffff,#eaf4ff);
   display:flex;
   align-items:center;
@@ -77,28 +115,29 @@ button.secondary{
 .trommel::before{
   content:"";
   position:absolute;
-  top:48%;
+  top:50%;
   left:0;
   right:0;
   height:4px;
-  background:#c00000;
+  background:var(--red);
+  opacity:.8;
 }
 
 #questionText{
   font-size:24px;
   font-weight:bold;
   text-align:center;
-  padding:14px;
+  padding:18px;
   z-index:2;
 }
 
 .roll{
-  animation:roll 0.8s ease-in-out 3;
+  animation:roll 0.7s ease-in-out 3;
 }
 
 @keyframes roll{
-  0%{transform:translateY(-40px);opacity:.4}
-  50%{transform:translateY(40px);opacity:1}
+  0%{transform:translateY(-45px);opacity:.3}
+  50%{transform:translateY(45px);opacity:1}
   100%{transform:translateY(0);opacity:1}
 }
 
@@ -109,29 +148,25 @@ button.secondary{
 }
 
 .answer{
-  background:#d9ecff;
-  border:2px solid #00509e;
-  border-radius:12px;
-  padding:14px;
+  background:var(--light);
+  border:2px solid var(--blue);
+  border-radius:14px;
+  padding:16px;
   font-size:18px;
-  min-height:70px;
+  min-height:82px;
   cursor:pointer;
 }
 
-.answer:hover{
-  background:#b9dcff;
-}
-
 .answer.selected{
-  background:#ffe9a8;
-  border-color:#c00000;
+  background:var(--yellow);
+  border-color:var(--red);
 }
 
 .feedback{
   font-size:20px;
   line-height:1.45;
   background:#fff8dc;
-  border-left:7px solid #c00000;
+  border-left:7px solid var(--red);
   padding:14px;
   border-radius:10px;
 }
@@ -139,18 +174,35 @@ button.secondary{
 .more{
   font-size:19px;
   line-height:1.45;
-  background:#e8f5e8;
+  background:var(--green);
   border-left:7px solid #228b22;
   padding:14px;
   border-radius:10px;
   margin-top:10px;
 }
 
+textarea{
+  width:100%;
+  min-height:150px;
+  font-size:15px;
+  padding:10px;
+}
+
+#adminPanel{
+  display:none;
+}
+
+.hidden{
+  display:none;
+}
+
 @media(max-width:650px){
-  header h1{font-size:24px}
+  header h1{font-size:30px}
+  header p{font-size:17px}
   .answers{grid-template-columns:1fr}
-  #questionText{font-size:20px}
-  button{width:100%;font-size:18px}
+  .status{grid-template-columns:1fr 1fr}
+  #questionText{font-size:21px}
+  .answer{font-size:18px}
 }
 </style>
 </head>
@@ -158,52 +210,82 @@ button.secondary{
 <body>
 
 <header>
-  <h1>Spørsmålstrommelen</h1>
-  <p>Trekk spørsmål – velg svar – få formativ tilbakemelding</p>
+  <h1>Quiztrommel</h1>
+  <p>Selvtesting med formativ tilbakemelding</p>
 </header>
 
 <main>
 
-<div class="panel">
-  <h3>Lim inn fra Excel</h3>
-  <p>Kolonner: Spørsmål | Riktig | Hvorfor riktig | Delvis riktig | Hvorfor delvis | Litt riktig | Hvorfor litt | Feil | Hvorfor feil</p>
-  <textarea id="excelInput"></textarea>
+<div class="panel toprow">
+  <strong>Studentmodus</strong>
+  <button class="small secondary" onclick="toggleAdmin()">⚙ Administrator</button>
+</div>
+
+<div class="panel" id="adminPanel">
+  <h2>Administrator</h2>
+  <p><strong>Excel-struktur:</strong></p>
+  <p>Spørsmål | Riktig | Hvorfor riktig | Delvis riktig | Hvorfor delvis | Litt riktig | Hvorfor litt | Feil | Hvorfor feil</p>
+
+  <textarea id="excelInput" placeholder="Lim inn rader fra Excel her"></textarea>
+
   <button onclick="loadData()">Last inn spørsmål</button>
+  <button class="secondary" onclick="loadExampleData()">Last eksempeldata</button>
+  <button class="secondary" onclick="clearData()">Tøm spørsmålbank</button>
+</div>
+
+<div class="panel">
+  <div class="status">
+    <div><strong id="countTotal">0</strong><br>spørsmål</div>
+    <div><strong id="countDone">0</strong><br>besvart</div>
+    <div><strong id="countLeft">0</strong><br>igjen</div>
+    <div><strong id="score">0</strong><br>poeng</div>
+  </div>
 </div>
 
 <div class="panel">
   <button onclick="drawQuestion()">Trekk spørsmål</button>
 
   <div class="trommel">
-    <div id="questionText">Trykk «Trekk spørsmål»</div>
+    <div id="questionText">Last inn spørsmål eller bruk eksempeldata</div>
   </div>
 </div>
 
 <div class="panel">
   <div class="answers">
-    <div class="answer" onclick="chooseAnswer(0)" id="a0"></div>
-    <div class="answer" onclick="chooseAnswer(1)" id="a1"></div>
-    <div class="answer" onclick="chooseAnswer(2)" id="a2"></div>
-    <div class="answer" onclick="chooseAnswer(3)" id="a3"></div>
+    <div class="answer" onclick="chooseAnswer(0)" id="a0">A</div>
+    <div class="answer" onclick="chooseAnswer(1)" id="a1">B</div>
+    <div class="answer" onclick="chooseAnswer(2)" id="a2">C</div>
+    <div class="answer" onclick="chooseAnswer(3)" id="a3">D</div>
   </div>
 </div>
 
-<div class="panel" id="feedbackPanel" style="display:none;">
-  <h3>Første forklaring</h3>
+<div class="panel hidden" id="feedbackPanel">
+  <h2>Første forklaring</h2>
   <div id="feedback" class="feedback"></div>
   <button onclick="moreInfo()">Mer info</button>
-  <div id="moreInfo" class="more" style="display:none;"></div>
+  <div id="moreInfo" class="more hidden"></div>
 </div>
 
 </main>
 
 <script>
 let questions = [];
+let unusedQuestions = [];
 let currentQuestion = null;
 let currentAnswer = null;
+let answeredThisQuestion = false;
+
+let done = 0;
+let score = 0;
+
+function toggleAdmin(){
+  const panel = document.getElementById("adminPanel");
+  panel.style.display = panel.style.display === "block" ? "none" : "block";
+}
 
 function loadData(){
   const text = document.getElementById("excelInput").value.trim();
+
   if(!text){
     alert("Lim inn data fra Excel først.");
     return;
@@ -214,15 +296,59 @@ function loadData(){
     return {
       question: c[0] || "",
       answers: [
-        {type:"Riktig", text:c[1] || "", feedback:c[2] || ""},
-        {type:"Delvis riktig", text:c[3] || "", feedback:c[4] || ""},
-        {type:"Litt riktig", text:c[5] || "", feedback:c[6] || ""},
-        {type:"Feil", text:c[7] || "", feedback:c[8] || ""}
+        {type:"Riktig", points:3, text:c[1] || "", feedback:c[2] || ""},
+        {type:"Delvis riktig", points:2, text:c[3] || "", feedback:c[4] || ""},
+        {type:"Litt riktig", points:1, text:c[5] || "", feedback:c[6] || ""},
+        {type:"Feil", points:0, text:c[7] || "", feedback:c[8] || ""}
       ]
     };
   }).filter(q => q.question.length > 0);
 
+  resetSession();
   alert(questions.length + " spørsmål lastet inn.");
+}
+
+function loadExampleData(){
+  const example =
+`Hva er Eulers knekking?	Et stabilitetsbrudd der en slank stav bøyer ut sideveis under trykk.	Riktig. Euler-knekking handler om stabilitetstap, ofte før materialet flyter.	Materialet flyter fordi trykkspenningen blir for høy.	Delvis riktig. Trykkspenning er relevant, men Euler-knekking skyldes først og fremst sideveis ustabilitet.	Søylen blir kortere når den trykkes sammen.	Litt riktig. En søyle forkortes ved trykk, men forkorting alene forklarer ikke knekking.	Søylen ryker fordi den får strekkbrudd.	Feil. Euler-knekking er knyttet til trykkbelastning og sideveis utbøyning.
+Hva beskriver friksjonskoeffisienten?	Forholdet mellom friksjonskraft og normalkraft.	Riktig. Friksjonskoeffisienten viser hvor stor friksjonskraften kan bli i forhold til normalkraften.	Overflatens ruhet alene.	Delvis riktig. Ruhet har betydning, men friksjonskoeffisienten avhenger også av materialpar og kontaktforhold.	Hvor hardt to flater presses sammen.	Litt riktig. Normalkraften påvirker friksjonskraften, men er ikke selve friksjonskoeffisienten.	Kraften som alltid virker i bevegelsesretningen.	Feil. Friksjon virker normalt mot relativ bevegelse eller bevegelsestendens.
+Hva er et bøyemoment?	En lastvirkning som forsøker å bøye en konstruksjon.	Riktig. Bøyemoment gir strekk i én del av tverrsnittet og trykk i en annen.	En kraft som virker langs bjelkens lengderetning.	Delvis riktig. Aksialkraft virker langs lengderetningen, men bøyemoment er en momentvirkning.	En lokal deformasjon i materialet.	Litt riktig. Bøying gir deformasjon, men bøyemomentet er selve lastvirkningen.	En skjærkraft som alltid er null i midten.	Feil. Bøyemoment og skjærkraft er ulike størrelser.`;
+
+  document.getElementById("excelInput").value = example;
+  loadData();
+}
+
+function clearData(){
+  questions = [];
+  unusedQuestions = [];
+  currentQuestion = null;
+  currentAnswer = null;
+  done = 0;
+  score = 0;
+  document.getElementById("excelInput").value = "";
+  document.getElementById("questionText").textContent = "Spørsmålbanken er tømt";
+  clearAnswers();
+  hideFeedback();
+  updateStatus();
+}
+
+function resetSession(){
+  unusedQuestions = [...questions];
+  currentQuestion = null;
+  currentAnswer = null;
+  answeredThisQuestion = false;
+  done = 0;
+  score = 0;
+  clearAnswers();
+  hideFeedback();
+  updateStatus();
+}
+
+function updateStatus(){
+  document.getElementById("countTotal").textContent = questions.length;
+  document.getElementById("countDone").textContent = done;
+  document.getElementById("countLeft").textContent = unusedQuestions.length;
+  document.getElementById("score").textContent = score;
 }
 
 function shuffle(array){
@@ -234,12 +360,19 @@ function shuffle(array){
 
 function drawQuestion(){
   if(questions.length === 0){
-    alert("Du må først lime inn og laste inn spørsmål.");
+    alert("Ingen spørsmål er lastet inn. Åpne Administrator og bruk eksempeldata eller lim inn fra Excel.");
     return;
   }
 
-  currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+  if(unusedQuestions.length === 0){
+    alert("Alle spørsmål er brukt. Økten starter på nytt.");
+    unusedQuestions = [...questions];
+  }
+
+  const index = Math.floor(Math.random() * unusedQuestions.length);
+  currentQuestion = unusedQuestions.splice(index,1)[0];
   currentAnswer = null;
+  answeredThisQuestion = false;
 
   const qText = document.getElementById("questionText");
   qText.classList.remove("roll");
@@ -250,19 +383,16 @@ function drawQuestion(){
     qText.textContent = currentQuestion.question;
   }, 300);
 
-  const mixedAnswers = shuffle(currentQuestion.answers);
-  currentQuestion.mixedAnswers = mixedAnswers;
+  currentQuestion.mixedAnswers = shuffle(currentQuestion.answers);
 
   for(let i=0;i<4;i++){
     const el = document.getElementById("a"+i);
-    el.textContent = String.fromCharCode(65+i) + ": " + mixedAnswers[i].text;
+    el.textContent = String.fromCharCode(65+i) + ": " + currentQuestion.mixedAnswers[i].text;
     el.classList.remove("selected");
   }
 
-  document.getElementById("feedbackPanel").style.display = "none";
-  document.getElementById("feedback").innerHTML = "";
-  document.getElementById("moreInfo").style.display = "none";
-  document.getElementById("moreInfo").innerHTML = "";
+  hideFeedback();
+  updateStatus();
 }
 
 function chooseAnswer(index){
@@ -279,44 +409,77 @@ function chooseAnswer(index){
 
   currentAnswer = currentQuestion.mixedAnswers[index];
 
-  document.getElementById("feedbackPanel").style.display = "block";
+  if(!answeredThisQuestion){
+    done++;
+    score += currentAnswer.points;
+    answeredThisQuestion = true;
+  }
+
+  document.getElementById("feedbackPanel").classList.remove("hidden");
+
   document.getElementById("feedback").innerHTML =
     "<strong>Valget ditt er: " + currentAnswer.type + ".</strong><br><br>" +
-    currentAnswer.feedback;
+    currentAnswer.feedback +
+    "<br><br><strong>Poeng:</strong> " + currentAnswer.points;
+
+  document.getElementById("moreInfo").classList.add("hidden");
+  document.getElementById("moreInfo").innerHTML = "";
+
+  updateStatus();
 }
 
 function moreInfo(){
   if(!currentAnswer || !currentQuestion) return;
 
-  let correct = currentQuestion.answers.find(a => a.type === "Riktig");
+  const correct = currentQuestion.answers.find(a => a.type === "Riktig");
 
   let text = "";
 
   if(currentAnswer.type === "Riktig"){
-    text = "Du har valgt riktig svar. Det viktige nå er å kunne forklare hvorfor dette er riktig med egne ord. " +
-           "Prøv å knytte svaret til fagbegrepene i spørsmålet. " +
-           "En god kontroll er om du kan forklare hvorfor de andre alternativene er mindre riktige.";
+    text =
+    "Du har valgt riktig svar. Neste steg er å forklare dette med egne ord. " +
+    "Prøv å bruke fagbegrepene i spørsmålet og forklar hvorfor de andre alternativene ikke er like gode.";
   }
   else if(currentAnswer.type === "Delvis riktig"){
-    text = "Dette svaret viser at du er på rett spor, men noe mangler eller er upresist. " +
-           "Sammenlikn svaret ditt med det helt riktige alternativet: «" + correct.text + "». " +
-           "Forskjellen mellom disse to svarene er trolig nøkkelen til bedre forståelse.";
+    text =
+    "Du er på rett spor, men svaret er ikke helt presist. " +
+    "Sammenlikn valget ditt med riktig svar: «" + correct.text + "». " +
+    "Hva mangler i forklaringen din? Hva må presiseres?";
   }
   else if(currentAnswer.type === "Litt riktig"){
-    text = "Her har du fanget opp en liten del av problemet, men hovedpoenget ligger et annet sted. " +
-           "Se spesielt på hva spørsmålet egentlig spør etter. " +
-           "Det helt riktige svaret er: «" + correct.text + "». " +
-           "Prøv å forklare hvorfor ditt svar bare dekker en mindre del av dette.";
+    text =
+    "Du har fanget opp en liten del av temaet, men hovedpoenget ligger et annet sted. " +
+    "Riktig svar er: «" + correct.text + "». " +
+    "Prøv å forklare hvorfor ditt svar bare dekker en begrenset del av spørsmålet.";
   }
   else{
-    text = "Dette svaret bygger på en misforståelse. " +
-           "Start med å lese spørsmålet en gang til og sammenlikn med riktig svar: «" + correct.text + "». " +
-           "Spør deg selv: Hvilket fagbegrep blander jeg sammen her?";
+    text =
+    "Dette svaret tyder på en misforståelse. " +
+    "Les spørsmålet på nytt og sammenlikn med riktig svar: «" + correct.text + "». " +
+    "Spør deg selv hvilket fagbegrep som blandes sammen her.";
   }
 
-  document.getElementById("moreInfo").style.display = "block";
-  document.getElementById("moreInfo").innerHTML = text;
+  const box = document.getElementById("moreInfo");
+  box.classList.remove("hidden");
+  box.innerHTML = text;
 }
+
+function clearAnswers(){
+  for(let i=0;i<4;i++){
+    const el = document.getElementById("a"+i);
+    el.textContent = String.fromCharCode(65+i);
+    el.classList.remove("selected");
+  }
+}
+
+function hideFeedback(){
+  document.getElementById("feedbackPanel").classList.add("hidden");
+  document.getElementById("feedback").innerHTML = "";
+  document.getElementById("moreInfo").classList.add("hidden");
+  document.getElementById("moreInfo").innerHTML = "";
+}
+
+updateStatus();
 </script>
 
 </body>
