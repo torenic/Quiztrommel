@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<title>Spørsmålstrommel</title>
+
+<style>
+body{
+  font-family: Arial, sans-serif;
+  margin:0;
+  background:#f2f5f8;
+  color:#111;
+}
+header{
+  background:#00509e;
+  color:white;
+  text-align:center;
+  padding:18px;
+}
+header h1{
+  margin:0;
+  font-size:32px;
+}
+main{
+  max-width:1100px;
+  margin:20px auto;
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 2px 10px #0002;
+}
+.controls{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+select, button{
+  font-size:18px;
+  padding:10px;
+}
+button{
+  background:#00509e;
+  color:white;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
+button:hover{
+  background:#003f7d;
+}
+.box{
+  border:2px solid #00509e;
+  border-radius:12px;
+  padding:18px;
+  margin-top:16px;
+}
+.question{
+  font-size:26px;
+  font-weight:bold;
+  margin-bottom:18px;
+}
+.answer-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.answer{
+  border-radius:10px;
+  padding:14px;
+  background:#eef5ff;
+}
+.answer h3{
+  margin-top:0;
+}
+.correct{background:#dff3df;}
+.near{background:#fff5cc;}
+.little{background:#ffe7c2;}
+.wrong{background:#ffd6d6;}
+textarea{
+  width:100%;
+  height:180px;
+  font-size:14px;
+  margin-top:10px;
+}
+.small{
+  font-size:14px;
+  color:#555;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Spørsmålstrommel</h1>
+  <p>Velg emne og tema – trekk tilfeldig spørsmål</p>
+</header>
+
+<main>
+
+<div class="controls">
+  <select id="emneSelect"></select>
+  <select id="temaSelect"></select>
+  <button onclick="trekkSporsmal()">Trekk spørsmål</button>
+</div>
+
+<button onclick="visFasit()">Vis fasit</button>
+<button onclick="resetBrukte()">Nullstill brukte spørsmål</button>
+
+<div class="box">
+  <div id="status" class="small">Ingen spørsmål trukket ennå.</div>
+  <div id="sporsmal" class="question"></div>
+
+  <div id="fasit" style="display:none;">
+    <div class="answer-grid">
+      <div class="answer correct">
+        <h3>Riktig</h3>
+        <p id="riktig"></p>
+        <p><b>Hvorfor:</b> <span id="hvorforRiktig"></span></p>
+      </div>
+
+      <div class="answer near">
+        <h3>Nesten riktig</h3>
+        <p id="nesten"></p>
+        <p><b>Hvorfor:</b> <span id="hvorforNesten"></span></p>
+      </div>
+
+      <div class="answer little">
+        <h3>Litt riktig</h3>
+        <p id="litt"></p>
+        <p><b>Hvorfor:</b> <span id="hvorforLitt"></span></p>
+      </div>
+
+      <div class="answer wrong">
+        <h3>Feil</h3>
+        <p id="feil"></p>
+        <p><b>Hvorfor:</b> <span id="hvorforFeil"></span></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Lim inn spørsmålsbank fra Excel</h2>
+<p class="small">
+Kopier radene fra Excel med kolonnene:<br>
+Emne, Tema, Spørsmål, Riktig, Hvorfor riktig, Nesten riktig, Hvorfor nesten riktig, Litt riktig, Hvorfor litt riktig, Feil, Hvorfor feil
+</p>
+
+<textarea id="dataInput"></textarea>
+<br><br>
+<button onclick="lastInnData()">Last inn spørsmålsbank</button>
+
+</main>
+
+<script>
+let sporsmalsbank = [];
+let brukte = [];
+
+function lastInnData(){
+  const tekst = document.getElementById("dataInput").value.trim();
+  if(!tekst){
+    alert("Lim inn data fra Excel først.");
+    return;
+  }
+
+  const linjer = tekst.split(/\n/);
+  sporsmalsbank = [];
+
+  linjer.forEach((linje, index) => {
+    const kol = linje.split(/\t/);
+
+    if(index === 0 && kol[0].toLowerCase().includes("emne")){
+      return;
+    }
+
+    if(kol.length >= 11){
+      sporsmalsbank.push({
+        emne: kol[0].trim(),
+        tema: kol[1].trim(),
+        sporsmal: kol[2].trim(),
+        riktig: kol[3].trim(),
+        hvorforRiktig: kol[4].trim(),
+        nesten: kol[5].trim(),
+        hvorforNesten: kol[6].trim(),
+        litt: kol[7].trim(),
+        hvorforLitt: kol[8].trim(),
+        feil: kol[9].trim(),
+        hvorforFeil: kol[10].trim()
+      });
+    }
+  });
+
+  brukte = [];
+  fyllMenyer();
+  alert("Spørsmålsbank lastet inn: " + sporsmalsbank.length + " spørsmål.");
+}
+
+function fyllMenyer(){
+  const emneSelect = document.getElementById("emneSelect");
+  const temaSelect = document.getElementById("temaSelect");
+
+  emneSelect.innerHTML = "";
+  temaSelect.innerHTML = "";
+
+  const emner = [...new Set(sporsmalsbank.map(x => x.emne))];
+
+  emner.forEach(emne => {
+    const opt = document.createElement("option");
+    opt.value = emne;
+    opt.textContent = emne;
+    emneSelect.appendChild(opt);
+  });
+
+  emneSelect.onchange = fyllTema;
+  fyllTema();
+}
+
+function fyllTema(){
+  const valgtEmne = document.getElementById("emneSelect").value;
+  const temaSelect = document.getElementById("temaSelect");
+
+  temaSelect.innerHTML = "";
+
+  const temaer = [...new Set(
+    sporsmalsbank
+      .filter(x => x.emne === valgtEmne)
+      .map(x => x.tema)
+  )];
+
+  temaer.forEach(tema => {
+    const opt = document.createElement("option");
+    opt.value = tema;
+    opt.textContent = tema;
+    temaSelect.appendChild(opt);
+  });
+}
+
+function trekkSporsmal(){
+  const emne = document.getElementById("emneSelect").value;
+  const tema = document.getElementById("temaSelect").value;
+
+  let aktuelle = sporsmalsbank.filter(x =>
+    x.emne === emne &&
+    x.tema === tema &&
+    !brukte.includes(x)
+  );
+
+  if(aktuelle.length === 0){
+    alert("Alle spørsmål i dette temaet er brukt. Trykk nullstill for å starte på nytt.");
+    return;
+  }
+
+  const valgt = aktuelle[Math.floor(Math.random() * aktuelle.length)];
+  brukte.push(valgt);
+
+  document.getElementById("status").textContent =
+    "Emne: " + valgt.emne + " | Tema: " + valgt.tema +
+    " | Brukte spørsmål: " + brukte.length;
+
+  document.getElementById("sporsmal").textContent = valgt.sporsmal;
+
+  document.getElementById("riktig").textContent = valgt.riktig;
+  document.getElementById("hvorforRiktig").textContent = valgt.hvorforRiktig;
+
+  document.getElementById("nesten").textContent = valgt.nesten;
+  document.getElementById("hvorforNesten").textContent = valgt.hvorforNesten;
+
+  document.getElementById("litt").textContent = valgt.litt;
+  document.getElementById("hvorforLitt").textContent = valgt.hvorforLitt;
+
+  document.getElementById("feil").textContent = valgt.feil;
+  document.getElementById("hvorforFeil").textContent = valgt.hvorforFeil;
+
+  document.getElementById("fasit").style.display = "none";
+}
+
+function visFasit(){
+  document.getElementById("fasit").style.display = "block";
+}
+
+function resetBrukte(){
+  brukte = [];
+  document.getElementById("status").textContent = "Brukte spørsmål er nullstilt.";
+}
+</script>
+
+</body>
+</html>
