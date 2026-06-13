@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spørsmålstrommelen</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:#f2f5f8;
+  color:#111;
+}
+
+header{
+  background:linear-gradient(135deg,#00509e,#002d62);
+  color:white;
+  text-align:center;
+  padding:18px 12px;
+}
+
+header h1{
+  margin:0;
+  font-size:30px;
+}
+
+main{
+  max-width:900px;
+  margin:auto;
+  padding:14px;
+}
+
+.panel{
+  background:white;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:14px;
+  box-shadow:0 2px 8px #0002;
+}
+
+textarea{
+  width:100%;
+  min-height:120px;
+  font-size:15px;
+  padding:10px;
+}
+
+button{
+  border:0;
+  border-radius:10px;
+  padding:14px 18px;
+  font-size:18px;
+  background:#00509e;
+  color:white;
+  cursor:pointer;
+  margin:5px;
+}
+
+button.secondary{
+  background:#555;
+}
+
+.trommel{
+  height:120px;
+  overflow:hidden;
+  border:5px solid #00509e;
+  border-radius:20px;
+  background:linear-gradient(#eaf4ff,#ffffff,#eaf4ff);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:12px 0;
+  position:relative;
+}
+
+.trommel::before{
+  content:"";
+  position:absolute;
+  top:48%;
+  left:0;
+  right:0;
+  height:4px;
+  background:#c00000;
+}
+
+#questionText{
+  font-size:24px;
+  font-weight:bold;
+  text-align:center;
+  padding:14px;
+  z-index:2;
+}
+
+.roll{
+  animation:roll 0.8s ease-in-out 3;
+}
+
+@keyframes roll{
+  0%{transform:translateY(-40px);opacity:.4}
+  50%{transform:translateY(40px);opacity:1}
+  100%{transform:translateY(0);opacity:1}
+}
+
+.answers{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.answer{
+  background:#d9ecff;
+  border:2px solid #00509e;
+  border-radius:12px;
+  padding:14px;
+  font-size:18px;
+  min-height:70px;
+  cursor:pointer;
+}
+
+.answer:hover{
+  background:#b9dcff;
+}
+
+.answer.selected{
+  background:#ffe9a8;
+  border-color:#c00000;
+}
+
+.feedback{
+  font-size:20px;
+  line-height:1.45;
+  background:#fff8dc;
+  border-left:7px solid #c00000;
+  padding:14px;
+  border-radius:10px;
+}
+
+.more{
+  font-size:19px;
+  line-height:1.45;
+  background:#e8f5e8;
+  border-left:7px solid #228b22;
+  padding:14px;
+  border-radius:10px;
+  margin-top:10px;
+}
+
+@media(max-width:650px){
+  header h1{font-size:24px}
+  .answers{grid-template-columns:1fr}
+  #questionText{font-size:20px}
+  button{width:100%;font-size:18px}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Spørsmålstrommelen</h1>
+  <p>Trekk spørsmål – velg svar – få formativ tilbakemelding</p>
+</header>
+
+<main>
+
+<div class="panel">
+  <h3>Lim inn fra Excel</h3>
+  <p>Kolonner: Spørsmål | Riktig | Hvorfor riktig | Delvis riktig | Hvorfor delvis | Litt riktig | Hvorfor litt | Feil | Hvorfor feil</p>
+  <textarea id="excelInput"></textarea>
+  <button onclick="loadData()">Last inn spørsmål</button>
+</div>
+
+<div class="panel">
+  <button onclick="drawQuestion()">Trekk spørsmål</button>
+
+  <div class="trommel">
+    <div id="questionText">Trykk «Trekk spørsmål»</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="answers">
+    <div class="answer" onclick="chooseAnswer(0)" id="a0"></div>
+    <div class="answer" onclick="chooseAnswer(1)" id="a1"></div>
+    <div class="answer" onclick="chooseAnswer(2)" id="a2"></div>
+    <div class="answer" onclick="chooseAnswer(3)" id="a3"></div>
+  </div>
+</div>
+
+<div class="panel" id="feedbackPanel" style="display:none;">
+  <h3>Første forklaring</h3>
+  <div id="feedback" class="feedback"></div>
+  <button onclick="moreInfo()">Mer info</button>
+  <div id="moreInfo" class="more" style="display:none;"></div>
+</div>
+
+</main>
+
+<script>
+let questions = [];
+let currentQuestion = null;
+let currentAnswer = null;
+
+function loadData(){
+  const text = document.getElementById("excelInput").value.trim();
+  if(!text){
+    alert("Lim inn data fra Excel først.");
+    return;
+  }
+
+  questions = text.split("\n").map(row => {
+    const c = row.split("\t");
+    return {
+      question: c[0] || "",
+      answers: [
+        {type:"Riktig", text:c[1] || "", feedback:c[2] || ""},
+        {type:"Delvis riktig", text:c[3] || "", feedback:c[4] || ""},
+        {type:"Litt riktig", text:c[5] || "", feedback:c[6] || ""},
+        {type:"Feil", text:c[7] || "", feedback:c[8] || ""}
+      ]
+    };
+  }).filter(q => q.question.length > 0);
+
+  alert(questions.length + " spørsmål lastet inn.");
+}
+
+function shuffle(array){
+  return array
+    .map(value => ({value, sort: Math.random()}))
+    .sort((a,b) => a.sort - b.sort)
+    .map(({value}) => value);
+}
+
+function drawQuestion(){
+  if(questions.length === 0){
+    alert("Du må først lime inn og laste inn spørsmål.");
+    return;
+  }
+
+  currentQuestion = questions[Math.floor(Math.random() * questions.length)];
+  currentAnswer = null;
+
+  const qText = document.getElementById("questionText");
+  qText.classList.remove("roll");
+  void qText.offsetWidth;
+  qText.classList.add("roll");
+
+  setTimeout(() => {
+    qText.textContent = currentQuestion.question;
+  }, 300);
+
+  const mixedAnswers = shuffle(currentQuestion.answers);
+  currentQuestion.mixedAnswers = mixedAnswers;
+
+  for(let i=0;i<4;i++){
+    const el = document.getElementById("a"+i);
+    el.textContent = String.fromCharCode(65+i) + ": " + mixedAnswers[i].text;
+    el.classList.remove("selected");
+  }
+
+  document.getElementById("feedbackPanel").style.display = "none";
+  document.getElementById("feedback").innerHTML = "";
+  document.getElementById("moreInfo").style.display = "none";
+  document.getElementById("moreInfo").innerHTML = "";
+}
+
+function chooseAnswer(index){
+  if(!currentQuestion){
+    alert("Trekk et spørsmål først.");
+    return;
+  }
+
+  for(let i=0;i<4;i++){
+    document.getElementById("a"+i).classList.remove("selected");
+  }
+
+  document.getElementById("a"+index).classList.add("selected");
+
+  currentAnswer = currentQuestion.mixedAnswers[index];
+
+  document.getElementById("feedbackPanel").style.display = "block";
+  document.getElementById("feedback").innerHTML =
+    "<strong>Valget ditt er: " + currentAnswer.type + ".</strong><br><br>" +
+    currentAnswer.feedback;
+}
+
+function moreInfo(){
+  if(!currentAnswer || !currentQuestion) return;
+
+  let correct = currentQuestion.answers.find(a => a.type === "Riktig");
+
+  let text = "";
+
+  if(currentAnswer.type === "Riktig"){
+    text = "Du har valgt riktig svar. Det viktige nå er å kunne forklare hvorfor dette er riktig med egne ord. " +
+           "Prøv å knytte svaret til fagbegrepene i spørsmålet. " +
+           "En god kontroll er om du kan forklare hvorfor de andre alternativene er mindre riktige.";
+  }
+  else if(currentAnswer.type === "Delvis riktig"){
+    text = "Dette svaret viser at du er på rett spor, men noe mangler eller er upresist. " +
+           "Sammenlikn svaret ditt med det helt riktige alternativet: «" + correct.text + "». " +
+           "Forskjellen mellom disse to svarene er trolig nøkkelen til bedre forståelse.";
+  }
+  else if(currentAnswer.type === "Litt riktig"){
+    text = "Her har du fanget opp en liten del av problemet, men hovedpoenget ligger et annet sted. " +
+           "Se spesielt på hva spørsmålet egentlig spør etter. " +
+           "Det helt riktige svaret er: «" + correct.text + "». " +
+           "Prøv å forklare hvorfor ditt svar bare dekker en mindre del av dette.";
+  }
+  else{
+    text = "Dette svaret bygger på en misforståelse. " +
+           "Start med å lese spørsmålet en gang til og sammenlikn med riktig svar: «" + correct.text + "». " +
+           "Spør deg selv: Hvilket fagbegrep blander jeg sammen her?";
+  }
+
+  document.getElementById("moreInfo").style.display = "block";
+  document.getElementById("moreInfo").innerHTML = text;
+}
+</script>
+
+</body>
+</html>
