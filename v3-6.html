@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiztrommel V3-6</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+:root{
+  --blue:#00509e;
+  --dark:#002d62;
+  --light:#d9ecff;
+  --green:#dff3df;
+  --yellow:#fff3c4;
+  --orange:#ffe2b8;
+  --red:#ffd6d6;
+  --grey:#f2f5f8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:var(--grey);color:#111}
+header{background:linear-gradient(135deg,var(--blue),var(--dark));color:white;text-align:center;padding:14px}
+header h1{margin:0;font-size:32px}
+header p{margin:5px 0 0;font-size:16px}
+main{max-width:900px;margin:auto;padding:10px}
+.panel{background:white;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px #0002}
+button{border:0;border-radius:12px;padding:12px 15px;font-size:17px;background:var(--blue);color:white;cursor:pointer;margin:4px 0;width:100%}
+button.secondary{background:#555}
+button.green{background:#208b20}
+button.red{background:#a00000}
+.modeRow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button.mode{background:#e8eef5;color:#111;font-weight:bold}
+button.mode.active{background:var(--blue);color:white}
+select,input[type=file]{width:100%;font-size:16px;padding:10px;margin:5px 0 10px}
+.topicBox{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.topicItem{background:#eef4fa;border-radius:10px;padding:8px;font-size:15px}
+.status{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;text-align:center}
+.status div{background:#eef4fa;padding:8px;border-radius:10px}
+.status strong{font-size:22px}
+.trommel{height:180px;overflow:hidden;border:6px solid var(--blue);border-radius:26px;background:linear-gradient(#dceeff,#fff,#dceeff);margin:10px 0;position:relative;box-shadow:inset 0 10px 20px #0001,inset 0 -10px 20px #0002}
+.trommel::before,.trommel::after{content:"";position:absolute;left:0;right:0;height:46px;z-index:5;pointer-events:none}
+.trommel::before{top:0;background:linear-gradient(#dceeff,rgba(255,255,255,0))}
+.trommel::after{bottom:0;background:linear-gradient(rgba(255,255,255,0),#dceeff)}
+.reel{position:absolute;left:0;top:0;width:100%;transform:translateY(60px)}
+.reelItem{height:60px;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px 18px;font-size:19px;font-weight:bold;border-bottom:1px solid #c8dff5;color:#1a1a1a;opacity:.55;line-height:1.18}
+.reelItem.final{font-size:23px;opacity:1;color:#000}
+.trommelCenter{position:absolute;top:60px;left:10px;right:10px;height:60px;border-top:3px solid #00509e55;border-bottom:3px solid #00509e55;z-index:4;pointer-events:none}
+.spinText{animation:spin .10s linear}
+@keyframes spin{0%{transform:translateY(-12px);opacity:.35}100%{transform:translateY(0);opacity:1}}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.answer{background:var(--light);border:3px solid var(--blue);border-radius:14px;padding:12px;font-size:17px;min-height:74px;cursor:pointer}
+.answer.selected{border-color:#111;box-shadow:0 0 0 3px #0002}
+.answer.correct{background:var(--green)}
+.answer.partial{background:var(--yellow)}
+.answer.little{background:var(--orange)}
+.answer.wrong{background:var(--red)}
+.feedback{font-size:18px;line-height:1.4;background:#fff8dc;border-left:7px solid #c00000;padding:12px;border-radius:10px}
+.more{font-size:18px;line-height:1.4;background:var(--green);border-left:7px solid #228b22;padding:12px;border-radius:10px;margin-top:8px}
+.notice{display:none;background:#dff3df;border-left:7px solid #228b22;padding:10px;border-radius:10px;font-size:17px;margin-bottom:10px}
+.hidden{display:none}
+.small{font-size:14px;color:#333}
+.progressList{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.progressItem{background:#eef4fa;border-radius:10px;padding:10px;text-align:center;font-size:16px}
+.progressItem.done{background:#dff3df;font-weight:bold}
+.resultBox{background:#eef4fa;border-radius:14px;padding:16px;text-align:center}
+.resultPercent{font-size:44px;font-weight:bold;color:var(--blue)}
+@media(max-width:650px){
+  .answers,.topicBox,.progressList{grid-template-columns:1fr}
+  .status{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Quiztrommel</h1>
+  <p>Emne → modul → tema → gjennomgang</p>
+</header>
+
+<main>
+
+<div id="notice" class="notice"></div>
+
+<div class="panel">
+  <div class="modeRow">
+    <button id="setupBtn" class="mode active" onclick="showSetup()">Oppsett</button>
+    <button id="testBtn" class="mode" onclick="showTest()">Testmodus</button>
+  </div>
+</div>
+
+<section id="setupSection">
+
+<div class="panel">
+  <h2>1. Last inn spørsmålsbank</h2>
+  <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="readExcelFile(event)">
+  <p class="small">
+    Excel-kolonner: Emne | Modul | Tema | Vanskelighetsgrad | Spørsmål | Riktig | Hvorfor riktig |
+    Nesten riktig | Hvorfor nesten riktig | Litt riktig | Hvorfor litt riktig | Feil | Hvorfor feil
+  </p>
+  <button class="secondary" onclick="clearData()">Tøm spørsmålsbank</button>
+</div>
+
+<div class="panel">
+  <h2>2. Velg økt</h2>
+
+  <label>Emne</label>
+  <select id="courseSelect" onchange="updateModuleSelect()">
+    <option value="">Ingen spørsmål lastet</option>
+  </select>
+
+  <label>Modul</label>
+  <select id="moduleSelect" onchange="updateTopicFilter()">
+    <option value="">Ingen modul</option>
+  </select>
+
+  <label>Vanskelighetsgrad</label>
+  <select id="difficultySelect" onchange="applyFilters()">
+    <option value="Alle">Alle</option>
+  </select>
+
+  <p><strong>Tema</strong></p>
+  <div id="topicBox" class="topicBox"></div>
+
+  <button onclick="selectAllTopics()">Velg alle tema</button>
+  <button class="green" onclick="startTest()">Start testmodus</button>
+</div>
+
+</section>
+
+<section id="testSection" class="hidden">
+
+<div class="panel">
+  <h2>Progresjon</h2>
+  <div id="progressList" class="progressList"></div>
+</div>
+
+<div class="panel">
+  <div class="status">
+    <div><strong id="countTotal">0</strong><br>i bank</div>
+    <div><strong id="countSession">0</strong><br>i økt</div>
+    <div><strong id="countLeft">0</strong><br>igjen</div>
+    <div><strong id="attemptNumber">1</strong><br>forsøk</div>
+  </div>
+</div>
+
+<div class="panel" id="quizPanel">
+  <button onclick="drawQuestion()">Trekk spørsmål</button>
+  <div class="trommel">
+    <div class="trommelCenter"></div>
+    <div id="reel" class="reel">
+      <div class="reelItem final">Start test fra oppsett</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="answers">
+    <div class="answer" id="a0" onclick="chooseAnswer(0)">A</div>
+    <div class="answer" id="a1" onclick="chooseAnswer(1)">B</div>
+    <div class="answer" id="a2" onclick="chooseAnswer(2)">C</div>
+    <div class="answer" id="a3" onclick="chooseAnswer(3)">D</div>
+  </div>
+</div>
+
+<div class="panel hidden" id="feedbackPanel">
+  <h2>Første forklaring</h2>
+  <div id="feedback" class="feedback"></div>
+  <button onclick="moreInfo()">Mer info</button>
+  <div id="moreInfo" class="more hidden"></div>
+</div>
+
+<div class="panel hidden" id="resultPanel">
+  <div class="resultBox">
+    <h2>Gjennomkjøring fullført</h2>
+    <div class="resultPercent" id="resultPercent">0%</div>
+    <p id="resultText"></p>
+    <button class="green" onclick="nextAttempt()">Prøv en gang til</button>
+    <button class="secondary" onclick="showSetup()">Til oppsett</button>
+  </div>
+</div>
+
+</section>
+
+<script>
+let allQuestions = [];
+let sessionQuestions = [];
+let unusedQuestions = [];
+let currentQuestion = null;
+let currentAnswer = null;
+let answeredThisQuestion = false;
+let spinning = false;
+
+let attemptScores = [];
+let attemptNumber = 1;
+let currentAttemptPoints = 0;
+let maxAttempts = 5;
+
+function showSetup(){
+  document.getElementById("setupSection").classList.remove("hidden");
+  document.getElementById("testSection").classList.add("hidden");
+  document.getElementById("setupBtn").classList.add("active");
+  document.getElementById("testBtn").classList.remove("active");
+}
+
+function showTest(){
+  document.getElementById("setupSection").classList.add("hidden");
+  document.getElementById("testSection").classList.remove("hidden");
+  document.getElementById("testBtn").classList.add("active");
+  document.getElementById("setupBtn").classList.remove("active");
+}
+
+function showNotice(text){
+  const n = document.getElementById("notice");
+  n.textContent = "✓ " + text;
+  n.style.display = "block";
+  setTimeout(()=>n.style.display="none",2600);
+}
+
+function clean(v){
+  return (v === undefined || v === null) ? "" : String(v).trim();
+}
+
+function questionFromArray(c){
+  return {
+    emne: clean(c[0]),
+    modul: clean(c[1]),
+    tema: clean(c[2]),
+    difficulty: clean(c[3]),
+    question: clean(c[4]),
+    answers: [
+      {type:"Riktig", points:10, text:clean(c[5]), feedback:clean(c[6])},
+      {type:"Nesten riktig", points:5, text:clean(c[7]), feedback:clean(c[8])},
+      {type:"Litt riktig", points:2, text:clean(c[9]), feedback:clean(c[10])},
+      {type:"Feil", points:0, text:clean(c[11]), feedback:clean(c[12])}
+    ]
+  };
+}
+
+function readExcelFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data,{type:"array"});
+
+    let rows = [];
+
+    workbook.SheetNames.forEach(sheetName=>{
+      const sheet = workbook.Sheets[sheetName];
+      const dataRows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
+      rows = rows.concat(dataRows);
+    });
+
+    rows = rows
+      .filter(row => row.length > 0)
+      .filter(row => clean(row[0]).toLowerCase() !== "emne");
+
+    allQuestions = rows
+      .map(questionFromArray)
+      .filter(q => q.emne && q.modul && q.tema && q.question && q.answers[0].text);
+
+    updateCourseSelect();
+    applyFilters();
+    showNotice(allQuestions.length + " spørsmål importert fra Excel.");
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+/* DEL 1 SLUTT – LIM DEL 2 RETT UNDER DENNE LINJEN */
+  function updateCourseSelect(){
+  const select = document.getElementById("courseSelect");
+  const courses = [...new Set(allQuestions.map(q=>q.emne))].sort();
+
+  select.innerHTML = "";
+  courses.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    select.appendChild(opt);
+  });
+
+  updateModuleSelect();
+}
+
+function updateModuleSelect(){
+  const course = document.getElementById("courseSelect").value;
+  const select = document.getElementById("moduleSelect");
+
+  const modules = [...new Set(allQuestions
+    .filter(q=>q.emne === course)
+    .map(q=>q.modul))].sort();
+
+  select.innerHTML = "";
+  modules.forEach(m=>{
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m;
+    select.appendChild(opt);
+  });
+
+  updateTopicFilter();
+}
+
+function updateTopicFilter(){
+  const course = document.getElementById("courseSelect").value;
+  const modul = document.getElementById("moduleSelect").value;
+  const topicBox = document.getElementById("topicBox");
+
+  const topics = [...new Set(allQuestions
+    .filter(q=>q.emne === course && q.modul === modul)
+    .map(q=>q.tema))].sort();
+
+  topicBox.innerHTML = "";
+  topics.forEach(t=>{
+    const label = document.createElement("label");
+    label.className = "topicItem";
+    label.innerHTML = `<input type="checkbox" class="topicCheck" value="${t}" checked onchange="applyFilters()"> ${t}`;
+    topicBox.appendChild(label);
+  });
+
+  updateDifficultyFilter();
+  applyFilters();
+}
+
+function updateDifficultyFilter(){
+  const select = document.getElementById("difficultySelect");
+  const current = select.value || "Alle";
+
+  const values = [...new Set(allQuestions
+    .map(q=>q.difficulty)
+    .filter(Boolean))].sort();
+
+  select.innerHTML = `<option value="Alle">Alle</option>`;
+  values.forEach(v=>{
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    select.appendChild(opt);
+  });
+
+  select.value = values.includes(current) ? current : "Alle";
+}
+
+function selectAllTopics(){
+  document.querySelectorAll(".topicCheck").forEach(cb=>cb.checked=true);
+  applyFilters();
+}
+
+function applyFilters(){
+  const course = document.getElementById("courseSelect").value;
+  const modul = document.getElementById("moduleSelect").value;
+  const difficulty = document.getElementById("difficultySelect").value;
+
+  const selectedTopics = [...document.querySelectorAll(".topicCheck")]
+    .filter(cb=>cb.checked)
+    .map(cb=>cb.value);
+
+  sessionQuestions = allQuestions.filter(q =>
+    q.emne === course &&
+    q.modul === modul &&
+    selectedTopics.includes(q.tema) &&
+    (difficulty === "Alle" || q.difficulty === difficulty)
+  );
+
+  unusedQuestions = [...sessionQuestions];
+  currentQuestion = null;
+  currentAnswer = null;
+  answeredThisQuestion = false;
+  currentAttemptPoints = 0;
+
+  clearAnswers();
+  hideFeedback();
+  hideResult();
+
+  setReelText(sessionQuestions.length ? "Trykk «Trekk spørsmål»" : "Ingen spørsmål i valgt filter");
+
+  updateStatus();
+  updateProgress();
+}
+
+function startTest(){
+  applyFilters();
+
+  if(sessionQuestions.length === 0){
+    showNotice("Ingen spørsmål i valgt filter.");
+    return;
+  }
+
+  attemptScores = [];
+  attemptNumber = 1;
+  currentAttemptPoints = 0;
+  unusedQuestions = [...sessionQuestions];
+
+  clearAnswers();
+  hideFeedback();
+  hideResult();
+
+  setReelText("Trykk «Trekk spørsmål»");
+  updateStatus();
+  updateProgress();
+  showTest();
+}
+
+function updateStatus(){
+  document.getElementById("countTotal").textContent = allQuestions.length;
+  document.getElementById("countSession").textContent = sessionQuestions.length;
+  document.getElementById("countLeft").textContent = unusedQuestions.length;
+  document.getElementById("attemptNumber").textContent = attemptNumber;
+}
+
+function updateProgress(){
+  const box = document.getElementById("progressList");
+  box.innerHTML = "";
+
+  for(let i=0;i<maxAttempts;i++){
+    const div = document.createElement("div");
+    div.className = "progressItem";
+
+    if(attemptScores[i] !== undefined){
+      div.classList.add("done");
+      div.innerHTML = "Forsøk " + (i+1) + "<br><strong>" + attemptScores[i] + "%</strong>";
+    }else{
+      div.innerHTML = "Forsøk " + (i+1) + "<br><strong>-</strong>";
+    }
+
+    box.appendChild(div);
+  }
+}
+
+function clearData(){
+  allQuestions=[];
+  sessionQuestions=[];
+  unusedQuestions=[];
+  currentQuestion=null;
+  currentAnswer=null;
+  attemptScores=[];
+  attemptNumber=1;
+  currentAttemptPoints=0;
+
+  document.getElementById("courseSelect").innerHTML='<option value="">Ingen spørsmål lastet</option>';
+  document.getElementById("moduleSelect").innerHTML='<option value="">Ingen modul</option>';
+  document.getElementById("topicBox").innerHTML="";
+  setReelText("Spørsmålsbanken er tømt");
+
+  clearAnswers();
+  hideFeedback();
+  hideResult();
+  updateStatus();
+  updateProgress();
+  showNotice("Spørsmålsbanken er tømt.");
+}
+
+function shuffle(array){
+  return array
+    .map(value=>({value,sort:Math.random()}))
+    .sort((a,b)=>a.sort-b.sort)
+    .map(({value})=>value);
+}
+
+
+function escapeHtml(text){
+  return String(text)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
+}
+
+function setReelText(text){
+  const reel = document.getElementById("reel");
+  if(!reel) return;
+  reel.style.transition = "none";
+  reel.style.transform = "translateY(60px)";
+  reel.innerHTML = '<div class="reelItem final">' + escapeHtml(text) + '</div>';
+}
+
+function drawQuestion(){
+  if(spinning) return;
+
+  if(sessionQuestions.length===0){
+    showNotice("Ingen spørsmål i valgt emne/modul/tema.");
+    return;
+  }
+
+  if(unusedQuestions.length===0){
+    finishAttempt();
+    return;
+  }
+
+  spinning=true;
+  hideFeedback();
+  hideResult();
+  clearAnswers();
+
+  const index=Math.floor(Math.random()*unusedQuestions.length);
+  currentQuestion=unusedQuestions.splice(index,1)[0];
+
+  const reel=document.getElementById("reel");
+  let items=[];
+
+  for(let i=0;i<26;i++){
+    const randomQuestion=sessionQuestions[Math.floor(Math.random()*sessionQuestions.length)];
+    items.push(randomQuestion.question);
+  }
+
+  items.push(currentQuestion.question);
+
+  reel.style.transition="none";
+  reel.style.transform="translateY(60px)";
+  reel.innerHTML=items.map((q,i)=>{
+    const cls = i===items.length-1 ? "reelItem final" : "reelItem";
+    return '<div class="' + cls + '">' + escapeHtml(q) + '</div>';
+  }).join("");
+
+  const itemHeight=60;
+  const finalIndex=items.length-1;
+  const finalOffset=60 - finalIndex * itemHeight;
+
+  setTimeout(()=>{
+    reel.style.transition="transform 3.2s cubic-bezier(.08,.72,.12,1)";
+    reel.style.transform="translateY(" + finalOffset + "px)";
+  },50);
+
+  setTimeout(()=>{
+    currentAnswer=null;
+    answeredThisQuestion=false;
+    currentQuestion.mixedAnswers=shuffle(currentQuestion.answers);
+
+    for(let i=0;i<4;i++){
+      const el=document.getElementById("a"+i);
+      el.textContent=String.fromCharCode(65+i)+": "+currentQuestion.mixedAnswers[i].text;
+      clearAnswerClasses(el);
+    }
+
+    spinning=false;
+    updateStatus();
+
+    if(navigator.vibrate){navigator.vibrate(80);}
+  },3350);
+}
+
+
+function chooseAnswer(index){
+  if(spinning) return;
+
+  if(!currentQuestion){
+    showNotice("Trekk et spørsmål først.");
+    return;
+  }
+
+  for(let i=0;i<4;i++){
+    clearAnswerClasses(document.getElementById("a"+i));
+  }
+
+  const el=document.getElementById("a"+index);
+  el.classList.add("selected");
+
+  currentAnswer=currentQuestion.mixedAnswers[index];
+
+  if(currentAnswer.type==="Riktig") el.classList.add("correct");
+  if(currentAnswer.type==="Nesten riktig") el.classList.add("partial");
+  if(currentAnswer.type==="Litt riktig") el.classList.add("little");
+  if(currentAnswer.type==="Feil") el.classList.add("wrong");
+
+  if(!answeredThisQuestion){
+    currentAttemptPoints += currentAnswer.points;
+    answeredThisQuestion=true;
+  }
+
+  document.getElementById("feedbackPanel").classList.remove("hidden");
+
+  document.getElementById("feedback").innerHTML =
+    "<strong>Valget ditt er: "+currentAnswer.type+".</strong><br><br>"+
+    currentAnswer.feedback+
+    "<br><br><strong>Neste steg:</strong> Trekk neste spørsmål når du er klar.";
+
+  document.getElementById("moreInfo").classList.add("hidden");
+  document.getElementById("moreInfo").innerHTML="";
+
+  updateStatus();
+
+  setTimeout(()=>document.getElementById("feedbackPanel").scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  }),100);
+}
+
+function finishAttempt(){
+  const maxPoints = sessionQuestions.length * 10;
+  const percent = maxPoints > 0 ? Math.round((currentAttemptPoints / maxPoints) * 100) : 0;
+
+  attemptScores.push(percent);
+  updateProgress();
+
+  document.getElementById("resultPanel").classList.remove("hidden");
+  document.getElementById("resultPercent").textContent = percent + "%";
+  document.getElementById("resultText").textContent =
+    "Forsøk " + attemptNumber + " er fullført. Du fikk " + percent + "%.";
+
+  document.getElementById("quizPanel").classList.add("hidden");
+  hideFeedback();
+  clearAnswers();
+
+  if(attemptNumber >= maxAttempts){
+    document.querySelector("#resultPanel button.green").classList.add("hidden");
+    document.getElementById("resultText").textContent += " Du har brukt alle 5 forsøk.";
+  }else{
+    document.querySelector("#resultPanel button.green").classList.remove("hidden");
+  }
+
+  setTimeout(()=>document.getElementById("resultPanel").scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  }),100);
+}
+
+function nextAttempt(){
+  if(attemptNumber >= maxAttempts){
+    showNotice("Maks 5 forsøk er brukt.");
+    return;
+  }
+
+  attemptNumber++;
+  currentAttemptPoints = 0;
+  unusedQuestions = [...sessionQuestions];
+  currentQuestion = null;
+  currentAnswer = null;
+  answeredThisQuestion = false;
+
+  document.getElementById("quizPanel").classList.remove("hidden");
+  setReelText("Trykk «Trekk spørsmål»");
+
+  hideResult();
+  hideFeedback();
+  clearAnswers();
+  updateStatus();
+  updateProgress();
+
+  setTimeout(()=>document.getElementById("quizPanel").scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  }),100);
+}
+
+function hideResult(){
+  document.getElementById("resultPanel").classList.add("hidden");
+  document.getElementById("quizPanel").classList.remove("hidden");
+}
+
+function moreInfo(){
+  if(!currentAnswer || !currentQuestion) return;
+
+  const correct=currentQuestion.answers.find(a=>a.type==="Riktig");
+  let text="";
+
+  if(currentAnswer.type==="Riktig"){
+    text="Du har valgt riktig svar. Prøv nå å forklare svaret med egne ord og sammenlikn med de andre alternativene.";
+  }else if(currentAnswer.type==="Nesten riktig"){
+    text="Du er nær riktig forståelse, men svaret må presiseres. Sammenlikn med riktig svar: «"+correct.text+"».";
+  }else if(currentAnswer.type==="Litt riktig"){
+    text="Du har fanget opp noe relevant, men hovedpoenget mangler. Riktig svar er: «"+correct.text+"».";
+  }else{
+    text="Dette svaret tyder på en misforståelse. Les spørsmålet på nytt og sammenlikn med riktig svar: «"+correct.text+"».";
+  }
+
+  const box=document.getElementById("moreInfo");
+  box.classList.remove("hidden");
+  box.textContent=text;
+
+  setTimeout(()=>box.scrollIntoView({
+    behavior:"smooth",
+    block:"nearest"
+  }),100);
+}
+
+function clearAnswerClasses(el){
+  el.classList.remove("selected","correct","partial","little","wrong");
+}
+
+function clearAnswers(){
+  for(let i=0;i<4;i++){
+    const el=document.getElementById("a"+i);
+    el.textContent=String.fromCharCode(65+i);
+    clearAnswerClasses(el);
+  }
+}
+
+function hideFeedback(){
+  document.getElementById("feedbackPanel").classList.add("hidden");
+  document.getElementById("feedback").innerHTML="";
+  document.getElementById("moreInfo").classList.add("hidden");
+  document.getElementById("moreInfo").innerHTML="";
+}
+
+updateStatus();
+updateProgress();
+</script>
+
+</main>
+</body>
+</html>
