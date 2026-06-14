@@ -182,17 +182,17 @@ function clean(v){
   return (v === undefined || v === null) ? "" : String(v).trim();
 }
 
-function questionFromRow(r){
+function questionFromArray(c){
   return {
-    emne: clean(r.Emne),
-    tema: clean(r.Tema),
-    difficulty: clean(r.Vanskelighetsgrad),
-    question: clean(r.Spørsmål),
+    emne: clean(c[0]),
+    tema: clean(c[1]),
+    difficulty: clean(c[2]),
+    question: clean(c[3]),
     answers: [
-      {type:"Riktig", points:10, text:clean(r.Riktig), feedback:clean(r["Hvorfor riktig"])},
-      {type:"Nesten riktig", points:5, text:clean(r["Nesten riktig"]), feedback:clean(r["Hvorfor nesten riktig"])},
-      {type:"Litt riktig", points:2, text:clean(r["Litt riktig"]), feedback:clean(r["Hvorfor litt riktig"])},
-      {type:"Feil", points:0, text:clean(r.Feil), feedback:clean(r["Hvorfor feil"])}
+      {type:"Riktig", points:10, text:clean(c[4]), feedback:clean(c[5])},
+      {type:"Nesten riktig", points:5, text:clean(c[6]), feedback:clean(c[7])},
+      {type:"Litt riktig", points:2, text:clean(c[8]), feedback:clean(c[9])},
+      {type:"Feil", points:0, text:clean(c[10]), feedback:clean(c[11])}
     ]
   };
 }
@@ -211,13 +211,17 @@ function readExcelFile(event){
 
     workbook.SheetNames.forEach(sheetName=>{
       const sheet = workbook.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json(sheet,{defval:""});
-      rows = rows.concat(json);
+      const dataRows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
+      rows = rows.concat(dataRows);
     });
 
-    allQuestions = rows.map(questionFromRow).filter(q =>
-      q.emne && q.tema && q.question && q.answers[0].text
-    );
+    rows = rows
+      .filter(row => row.length > 0)
+      .filter(row => clean(row[0]).toLowerCase() !== "emne");
+
+    allQuestions = rows
+      .map(questionFromArray)
+      .filter(q => q.emne && q.tema && q.question && q.answers[0].text);
 
     afterLoad();
     showNotice(allQuestions.length + " spørsmål importert fra Excel.");
@@ -233,19 +237,16 @@ function loadPastedData(){
     return;
   }
 
-  const lines = text.split("\n").filter(x=>x.trim());
-  const rows = lines.map(line=>{
-    const c = line.split("\t");
-    return {
-      Emne:c[0], Tema:c[1], Vanskelighetsgrad:c[2], Spørsmål:c[3],
-      Riktig:c[4], "Hvorfor riktig":c[5],
-      "Nesten riktig":c[6], "Hvorfor nesten riktig":c[7],
-      "Litt riktig":c[8], "Hvorfor litt riktig":c[9],
-      Feil:c[10], "Hvorfor feil":c[11]
-    };
-  });
+  let rows = text
+    .split("\n")
+    .map(line => line.split("\t"))
+    .filter(row => row.length > 0)
+    .filter(row => clean(row[0]).toLowerCase() !== "emne");
 
-  allQuestions = rows.map(questionFromRow).filter(q => q.emne && q.tema && q.question);
+  allQuestions = rows
+    .map(questionFromArray)
+    .filter(q => q.emne && q.tema && q.question && q.answers[0].text);
+
   afterLoad();
   showNotice(allQuestions.length + " spørsmål lastet inn.");
 }
