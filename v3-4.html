@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiztrommel V3-4</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+:root{
+  --blue:#00509e;
+  --dark:#002d62;
+  --light:#d9ecff;
+  --green:#dff3df;
+  --yellow:#fff3c4;
+  --orange:#ffe2b8;
+  --red:#ffd6d6;
+  --grey:#f2f5f8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:var(--grey);color:#111}
+header{background:linear-gradient(135deg,var(--blue),var(--dark));color:white;text-align:center;padding:14px}
+header h1{margin:0;font-size:32px}
+header p{margin:5px 0 0;font-size:16px}
+main{max-width:900px;margin:auto;padding:10px}
+.panel{background:white;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px #0002}
+button{border:0;border-radius:12px;padding:12px 15px;font-size:17px;background:var(--blue);color:white;cursor:pointer;margin:4px 0;width:100%}
+button.secondary{background:#555}
+.modeRow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button.mode{background:#e8eef5;color:#111;font-weight:bold}
+button.mode.active{background:var(--blue);color:white}
+select,input[type=file]{width:100%;font-size:16px;padding:10px;margin:5px 0 10px}
+.topicBox{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.topicItem{background:#eef4fa;border-radius:10px;padding:8px;font-size:15px}
+.status{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;text-align:center}
+.status div{background:#eef4fa;padding:8px;border-radius:10px}
+.status strong{font-size:22px}
+.trommel{min-height:145px;border:5px solid var(--blue);border-radius:22px;background:linear-gradient(#eaf4ff,#fff,#eaf4ff);display:flex;align-items:center;justify-content:center;margin:10px 0;padding:14px}
+#questionText{font-size:22px;font-weight:bold;text-align:center;line-height:1.25}
+.spinText{animation:spin .10s linear}
+@keyframes spin{0%{transform:translateY(-12px);opacity:.35}100%{transform:translateY(0);opacity:1}}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.answer{background:var(--light);border:3px solid var(--blue);border-radius:14px;padding:12px;font-size:17px;min-height:74px;cursor:pointer}
+.answer.selected{border-color:#111;box-shadow:0 0 0 3px #0002}
+.answer.correct{background:var(--green)}
+.answer.partial{background:var(--yellow)}
+.answer.little{background:var(--orange)}
+.answer.wrong{background:var(--red)}
+.feedback{font-size:18px;line-height:1.4;background:#fff8dc;border-left:7px solid #c00000;padding:12px;border-radius:10px}
+.more{font-size:18px;line-height:1.4;background:var(--green);border-left:7px solid #228b22;padding:12px;border-radius:10px;margin-top:8px}
+.notice{display:none;background:#dff3df;border-left:7px solid #228b22;padding:10px;border-radius:10px;font-size:17px;margin-bottom:10px}
+.hidden{display:none}
+.small{font-size:14px;color:#333}
+@media(max-width:650px){
+  .answers,.topicBox{grid-template-columns:1fr}
+  .status{grid-template-columns:1fr 1fr}
+  #questionText{font-size:21px}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Quiztrommel</h1>
+  <p>Emne → modul → tema → gjennomgang</p>
+</header>
+
+<main>
+
+<div id="notice" class="notice"></div>
+
+<div class="panel">
+  <div class="modeRow">
+    <button id="studentBtn" class="mode active" onclick="setMode('student')">Studentmodus</button>
+    <button id="adminBtn" class="mode" onclick="setMode('admin')">⚙ Administrator</button>
+  </div>
+</div>
+
+<div class="panel hidden" id="adminPanel">
+  <h2>1. Last inn spørsmålsbank</h2>
+  <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="readExcelFile(event)">
+  <p class="small">
+    Excel-kolonner: Emne | Modul | Tema | Vanskelighetsgrad | Spørsmål | Riktig | Hvorfor riktig |
+    Nesten riktig | Hvorfor nesten riktig | Litt riktig | Hvorfor litt riktig | Feil | Hvorfor feil
+  </p>
+  <button class="secondary" onclick="clearData()">Tøm spørsmålsbank</button>
+</div>
+
+<div class="panel">
+  <h2>2. Velg økt</h2>
+
+  <label>Emne</label>
+  <select id="courseSelect" onchange="updateModuleSelect()">
+    <option value="">Ingen spørsmål lastet</option>
+  </select>
+
+  <label>Modul</label>
+  <select id="moduleSelect" onchange="updateTopicFilter()">
+    <option value="">Ingen modul</option>
+  </select>
+
+  <label>Vanskelighetsgrad</label>
+  <select id="difficultySelect" onchange="applyFilters()">
+    <option value="Alle">Alle</option>
+  </select>
+
+  <p><strong>Tema</strong></p>
+  <div id="topicBox" class="topicBox"></div>
+
+  <button onclick="selectAllTopics()">Velg alle tema</button>
+  <button class="secondary" onclick="applyFilters()">Start / oppdater økt</button>
+</div>
+
+<div class="panel">
+  <div class="status">
+    <div><strong id="countTotal">0</strong><br>i bank</div>
+    <div><strong id="countSession">0</strong><br>i økt</div>
+    <div><strong id="countLeft">0</strong><br>igjen</div>
+    <div><strong id="score">0</strong><br>poeng</div>
+  </div>
+</div>
+
+<div class="panel">
+  <button onclick="drawQuestion()">Trekk spørsmål</button>
+  <div class="trommel">
+    <div id="questionText">Importer Excel-fil først</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="answers">
+    <div class="answer" id="a0" onclick="chooseAnswer(0)">A</div>
+    <div class="answer" id="a1" onclick="chooseAnswer(1)">B</div>
+    <div class="answer" id="a2" onclick="chooseAnswer(2)">C</div>
+    <div class="answer" id="a3" onclick="chooseAnswer(3)">D</div>
+  </div>
+</div>
+
+<div class="panel hidden" id="feedbackPanel">
+  <h2>Første forklaring</h2>
+  <div id="feedback" class="feedback"></div>
+  <button onclick="moreInfo()">Mer info</button>
+  <div id="moreInfo" class="more hidden"></div>
+</div>
+
+</main>
+
+<script>
+let allQuestions = [];
+let sessionQuestions = [];
+let unusedQuestions = [];
+let currentQuestion = null;
+let currentAnswer = null;
+let answeredThisQuestion = false;
+let spinning = false;
+let score = 0;
+
+function setMode(mode){
+  document.getElementById("adminPanel").classList.toggle("hidden", mode !== "admin");
+  document.getElementById("studentBtn").classList.toggle("active", mode === "student");
+  document.getElementById("adminBtn").classList.toggle("active", mode === "admin");
+}
+
+function showNotice(text){
+  const n = document.getElementById("notice");
+  n.textContent = "✓ " + text;
+  n.style.display = "block";
+  setTimeout(()=>n.style.display="none",2600);
+}
+
+function clean(v){
+  return (v === undefined || v === null) ? "" : String(v).trim();
+}
+
+function questionFromArray(c){
+  return {
+    emne: clean(c[0]),
+    modul: clean(c[1]),
+    tema: clean(c[2]),
+    difficulty: clean(c[3]),
+    question: clean(c[4]),
+    answers: [
+      {type:"Riktig", points:10, text:clean(c[5]), feedback:clean(c[6])},
+      {type:"Nesten riktig", points:5, text:clean(c[7]), feedback:clean(c[8])},
+      {type:"Litt riktig", points:2, text:clean(c[9]), feedback:clean(c[10])},
+      {type:"Feil", points:0, text:clean(c[11]), feedback:clean(c[12])}
+    ]
+  };
+}
+
+function readExcelFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e){
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data,{type:"array"});
+
+    let rows = [];
+
+    workbook.SheetNames.forEach(sheetName=>{
+      const sheet = workbook.Sheets[sheetName];
+      const dataRows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
+      rows = rows.concat(dataRows);
+    });
+
+    rows = rows
+      .filter(row => row.length > 0)
+      .filter(row => clean(row[0]).toLowerCase() !== "emne");
+
+    allQuestions = rows
+      .map(questionFromArray)
+      .filter(q => q.emne && q.modul && q.tema && q.question && q.answers[0].text);
+
+    afterLoad();
+    showNotice(allQuestions.length + " spørsmål importert fra Excel.");
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function afterLoad(){
+  setMode("student");
+  updateCourseSelect();
+  applyFilters();
+}
+
+function updateCourseSelect(){
+  const select = document.getElementById("courseSelect");
+  const courses = [...new Set(allQuestions.map(q=>q.emne))].sort();
+
+  select.innerHTML = "";
+  courses.forEach(c=>{
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    select.appendChild(opt);
+  });
+
+  updateModuleSelect();
+}
+
+function updateModuleSelect(){
+  const course = document.getElementById("courseSelect").value;
+  const select = document.getElementById("moduleSelect");
+
+  const modules = [...new Set(allQuestions
+    .filter(q=>q.emne === course)
+    .map(q=>q.modul))].sort();
+
+  select.innerHTML = "";
+  modules.forEach(m=>{
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = m;
+    select.appendChild(opt);
+  });
+
+  updateTopicFilter();
+}
+
+function updateTopicFilter(){
+  const course = document.getElementById("courseSelect").value;
+  const modul = document.getElementById("moduleSelect").value;
+  const topicBox = document.getElementById("topicBox");
+
+  const topics = [...new Set(allQuestions
+    .filter(q=>q.emne === course && q.modul === modul)
+    .map(q=>q.tema))].sort();
+
+  topicBox.innerHTML = "";
+  topics.forEach(t=>{
+    const label = document.createElement("label");
+    label.className = "topicItem";
+    label.innerHTML = `<input type="checkbox" class="topicCheck" value="${t}" checked onchange="applyFilters()"> ${t}`;
+    topicBox.appendChild(label);
+  });
+
+  updateDifficultyFilter();
+  applyFilters();
+}
+
+function updateDifficultyFilter(){
+  const select = document.getElementById("difficultySelect");
+  const current = select.value || "Alle";
+
+  const values = [...new Set(allQuestions
+    .map(q=>q.difficulty)
+    .filter(Boolean))].sort();
+
+  select.innerHTML = `<option value="Alle">Alle</option>`;
+  values.forEach(v=>{
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    select.appendChild(opt);
+  });
+
+  select.value = values.includes(current) ? current : "Alle";
+}
+
+function selectAllTopics(){
+  document.querySelectorAll(".topicCheck").forEach(cb=>cb.checked=true);
+  applyFilters();
+}
+
+function applyFilters(){
+  const course = document.getElementById("courseSelect").value;
+  const modul = document.getElementById("moduleSelect").value;
+  const difficulty = document.getElementById("difficultySelect").value;
+
+  const selectedTopics = [...document.querySelectorAll(".topicCheck")]
+    .filter(cb=>cb.checked)
+    .map(cb=>cb.value);
+
+  sessionQuestions = allQuestions.filter(q =>
+    q.emne === course &&
+    q.modul === modul &&
+    selectedTopics.includes(q.tema) &&
+    (difficulty === "Alle" || q.difficulty === difficulty)
+  );
+
+  unusedQuestions = [...sessionQuestions];
+  currentQuestion = null;
+  currentAnswer = null;
+  answeredThisQuestion = false;
+  score = 0;
+
+  clearAnswers();
+  hideFeedback();
+
+  document.getElementById("questionText").textContent =
+    sessionQuestions.length ? "Trykk «Trekk spørsmål»" : "Ingen spørsmål i valgt filter";
+
+  updateStatus();
+}
+
+function updateStatus(){
+  document.getElementById("countTotal").textContent = allQuestions.length;
+  document.getElementById("countSession").textContent = sessionQuestions.length;
+  document.getElementById("countLeft").textContent = unusedQuestions.length;
+  document.getElementById("score").textContent = score;
+}
+
+function clearData(){
+  allQuestions=[];
+  sessionQuestions=[];
+  unusedQuestions=[];
+  currentQuestion=null;
+  currentAnswer=null;
+  score=0;
+
+  document.getElementById("courseSelect").innerHTML='<option value="">Ingen spørsmål lastet</option>';
+  document.getElementById("moduleSelect").innerHTML='<option value="">Ingen modul</option>';
+  document.getElementById("topicBox").innerHTML="";
+  document.getElementById("questionText").textContent="Spørsmålsbanken er tømt";
+
+  clearAnswers();
+  hideFeedback();
+  updateStatus();
+  showNotice("Spørsmålsbanken er tømt.");
+}
+
+function shuffle(array){
+  return array
+    .map(value=>({value,sort:Math.random()}))
+    .sort((a,b)=>a.sort-b.sort)
+    .map(({value})=>value);
+}
+
+function drawQuestion(){
+  if(spinning) return;
+
+  if(sessionQuestions.length===0){
+    showNotice("Ingen spørsmål i valgt emne/modul/tema.");
+    return;
+  }
+
+  if(unusedQuestions.length===0){
+    unusedQuestions=[...sessionQuestions];
+    showNotice("Alle spørsmål er brukt. Ny runde starter.");
+  }
+
+  spinning=true;
+  hideFeedback();
+  clearAnswers();
+
+  const qText=document.getElementById("questionText");
+  let spins=0;
+  const maxSpins=18;
+
+  const interval=setInterval(()=>{
+    const randomQuestion=sessionQuestions[Math.floor(Math.random()*sessionQuestions.length)];
+    qText.textContent=randomQuestion.question;
+    qText.classList.remove("spinText");
+    void qText.offsetWidth;
+    qText.classList.add("spinText");
+    spins++;
+
+    if(spins>=maxSpins){
+      clearInterval(interval);
+
+      const index=Math.floor(Math.random()*unusedQuestions.length);
+      currentQuestion=unusedQuestions.splice(index,1)[0];
+
+      qText.textContent=currentQuestion.question;
+      currentAnswer=null;
+      answeredThisQuestion=false;
+      currentQuestion.mixedAnswers=shuffle(currentQuestion.answers);
+
+      for(let i=0;i<4;i++){
+        const el=document.getElementById("a"+i);
+        el.textContent=String.fromCharCode(65+i)+": "+currentQuestion.mixedAnswers[i].text;
+        clearAnswerClasses(el);
+      }
+
+      spinning=false;
+      updateStatus();
+
+      if(navigator.vibrate){navigator.vibrate(80);}
+    }
+  },85);
+}
+
+function chooseAnswer(index){
+  if(spinning) return;
+
+  if(!currentQuestion){
+    showNotice("Trekk et spørsmål først.");
+    return;
+  }
+
+  for(let i=0;i<4;i++){
+    clearAnswerClasses(document.getElementById("a"+i));
+  }
+
+  const el=document.getElementById("a"+index);
+  el.classList.add("selected");
+
+  currentAnswer=currentQuestion.mixedAnswers[index];
+
+  if(currentAnswer.type==="Riktig") el.classList.add("correct");
+  if(currentAnswer.type==="Nesten riktig") el.classList.add("partial");
+  if(currentAnswer.type==="Litt riktig") el.classList.add("little");
+  if(currentAnswer.type==="Feil") el.classList.add("wrong");
+
+  if(!answeredThisQuestion){
+    score += currentAnswer.points;
+    answeredThisQuestion=true;
+  }
+
+  document.getElementById("feedbackPanel").classList.remove("hidden");
+
+  document.getElementById("feedback").innerHTML =
+    "<strong>Valget ditt er: "+currentAnswer.type+".</strong><br><br>"+
+    currentAnswer.feedback+
+    "<br><br><strong>Poeng:</strong> "+currentAnswer.points;
+
+  document.getElementById("moreInfo").classList.add("hidden");
+  document.getElementById("moreInfo").innerHTML="";
+
+  updateStatus();
+
+  setTimeout(()=>document.getElementById("feedbackPanel").scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  }),100);
+}
+
+function moreInfo(){
+  if(!currentAnswer || !currentQuestion) return;
+
+  const correct=currentQuestion.answers.find(a=>a.type==="Riktig");
+  let text="";
+
+  if(currentAnswer.type==="Riktig"){
+    text="Du har valgt riktig svar. Prøv nå å forklare svaret med egne ord og sammenlikn med de andre alternativene.";
+  }else if(currentAnswer.type==="Nesten riktig"){
+    text="Du er nær riktig forståelse, men svaret må presiseres. Sammenlikn med riktig svar: «"+correct.text+"».";
+  }else if(currentAnswer.type==="Litt riktig"){
+    text="Du har fanget opp noe relevant, men hovedpoenget mangler. Riktig svar er: «"+correct.text+"».";
+  }else{
+    text="Dette svaret tyder på en misforståelse. Les spørsmålet på nytt og sammenlikn med riktig svar: «"+correct.text+"».";
+  }
+
+  const box=document.getElementById("moreInfo");
+  box.classList.remove("hidden");
+  box.textContent=text;
+
+  setTimeout(()=>box.scrollIntoView({
+    behavior:"smooth",
+    block:"nearest"
+  }),100);
+}
+
+function clearAnswerClasses(el){
+  el.classList.remove("selected","correct","partial","little","wrong");
+}
+
+function clearAnswers(){
+  for(let i=0;i<4;i++){
+    const el=document.getElementById("a"+i);
+    el.textContent=String.fromCharCode(65+i);
+    clearAnswerClasses(el);
+  }
+}
+
+function hideFeedback(){
+  document.getElementById("feedbackPanel").classList.add("hidden");
+  document.getElementById("feedback").innerHTML="";
+  document.getElementById("moreInfo").classList.add("hidden");
+  document.getElementById("moreInfo").innerHTML="";
+}
+
+updateStatus();
+</script>
+
+</body>
+</html>
